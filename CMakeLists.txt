@@ -12,9 +12,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 
-cmake_minimum_required(VERSION 3.13)
-
-project(nng-wolfssl C)
+# This module is intended to be directly included in the NNG build
+# process.  It is not standalone.
 
 include(CheckLibraryExists)
 
@@ -22,13 +21,13 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 message(WARNING "
         ============================================================
-        wolfSSL NNG Module is GPLv3.0
+        wolfSSL NNG Module is GPLv3.0 (See COPYING)
         ============================================================
         Linking against wolfSSL changes license terms (GPL v3.0)!
         Consult a lawyer and the license files for details.
         ============================================================")
 
-add_library(nng-wolfssl INTERFACE)
+add_library(nng-wolfssl OBJECT)
 target_sources(nng-wolfssl wolfssl.c)
 
 # WolfSSL does not have a CMake configuration, so we depend on it to be
@@ -36,7 +35,7 @@ target_sources(nng-wolfssl wolfssl.c)
 # really should be edited by hand, we also don't try to automate any of it
 # using ExternalProject_Add.  (End users need to hand-configure it.)
 find_package(wolfSSL REQUIRED)
-target_link_libraries(nng-wolfssl ${WOLFSSL_LIBRARIES})
+target_link_libraries(nng-wolfssl INTERFACE ${WOLFSSL_LIBRARIES})
 target_include_directories(nng-wolfssl PRIVATE ${WOLFSSL_INCLUDE_DIR})
 
 # wolfssl/options.h in theory has defines already for these checks, but they
@@ -65,15 +64,3 @@ if (NNG_WOLFSSL_HAVE_PASSWORD)
 else ()
     message(WARNING "WolfSSL configured without password support.")
 endif ()
-
-#if (TARGET nng)
-#    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
-#    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
-#    target_link_libraries(nng PRIVATE nng-wolfssl)
-#endif ()
-#
-#if (TARGET nng_testlib)
-#    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
-#    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
-#    target_link_libraries(nng_testlib PRIVATE nng-wolfssl)
-#endif ()

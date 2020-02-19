@@ -12,6 +12,9 @@ FIPS 140-2 compliant solution.
 
 == Configuration
 
+This plugin should already be a Git submodule within the
+NNG installation, at the right location.
+
 Download and install wolfSSL as per the instructions.
 This library will attempt to locate the installation in the
 usual places.  If a different value for `--prefix` was
@@ -26,7 +29,7 @@ The default configuration of wolfSSL leaves out many useful
 features, such as CRLs, encrypted private key files, as well as
 older (but still widely used) versions of TLS and some algorithms.
 
-This library will attempt to discover what options are present
+This plugin will attempt to discover what options are present
 
 == Limitations and Caveats
 
