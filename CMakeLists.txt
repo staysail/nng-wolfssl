@@ -12,7 +12,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 
 project(nng-wolfssl C)
 
@@ -28,20 +28,18 @@ message(WARNING "
         Consult a lawyer and the license files for details.
         ============================================================")
 
-add_library(nng-wolfssl OBJECT wolfssl.c)
+add_library(nng-wolfssl INTERFACE)
+target_sources(nng-wolfssl wolfssl.c)
 
-if (TARGET wolfssl)
-    target_link_libraries(nng-wolfssl nng-wolfssl)
-    # presumably the includes are already set...
-else ()
-    find_package(wolfSSL REQUIRED)
-    set(_LIBS ${WOLFSSL_LIBRARIES})
-    set(_INCS ${WOLFSSL_INCLUDE_DIR})
-    target_link_libraries(nng-wolfssl ${WOLFSSL_LIBRARIES})
-    target_include_directories(nng-wolfssl PRIVATE ${WOLFSS_INCLUDE_DIR})
-endif ()
+# WolfSSL does not have a CMake configuration, so we depend on it to be
+# installed separately. Because the configuration is rather onerous, and
+# really should be edited by hand, we also don't try to automate any of it
+# using ExternalProject_Add.  (End users need to hand-configure it.)
+find_package(wolfSSL REQUIRED)
+target_link_libraries(nng-wolfssl ${WOLFSSL_LIBRARIES})
+target_include_directories(nng-wolfssl PRIVATE ${WOLFSSL_INCLUDE_DIR})
 
-# wolfss/options.h in theory has defines already for these checks, but they
+# wolfssl/options.h in theory has defines already for these checks, but they
 # are poorly documented, and might not be reliable -- so we check ourselves.
 check_library_exists(wolfssl wolfSSL_CTX_LoadCRLBuffer "" NNG_WOLFSSL_HAVE_CRL)
 check_library_exists(wolfssl wolfSSL_get_verify_result "" NNG_WOLFSSL_HAVE_VERIFY)
@@ -57,18 +55,25 @@ endmacro()
 # This particular CMakeLists.txt only works in the context of
 # of a the larger NNG project.
 
-nng_wolfssl_define(NNG_WOLFSSL_HAVE_CRL)
-nng_wolfssl_define(NNG_WOLFSSL_HAVE_VERIFY)
-nng_wolfssl_define(NNG_WOLFSSL_HAVE_PASSWORD)
-
-if (TARGET nng)
-    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
-    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
-    target_link_libraries(nng PRIVATE nng-wolfssl)
-endif()
-
-if (TARGET nng_testlib)
-    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
-    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
-    target_link_libraries(nng_testlib PRIVATE nng-wolfssl)
+if (NNG_WOLFSSL_HAVE_CRL)
+    target_compile_definitions(nng-wolfssl PRIVATE NNG_WOLFSSL_HAVE_CRL)
+else ()
+    message(WARNING "WolfSSL configured without CRL support.")
 endif ()
+if (NNG_WOLFSSL_HAVE_PASSWORD)
+    target_compile_definitions(nng-wolfssl PRIVATE NNG_WOLFSSL_HAVE_PASSWORD)
+else ()
+    message(WARNING "WolfSSL configured without password support.")
+endif ()
+
+#if (TARGET nng)
+#    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
+#    target_compile_definitions(nng PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
+#    target_link_libraries(nng PRIVATE nng-wolfssl)
+#endif ()
+#
+#if (TARGET nng_testlib)
+#    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_INIT=nng_tls_engine_init_wolf)
+#    target_compile_definitions(nng_testlib PRIVATE NNG_TLS_ENGINE_FINI=nng_tls_engine_fini_wolf)
+#    target_link_libraries(nng_testlib PRIVATE nng-wolfssl)
+#endif ()
