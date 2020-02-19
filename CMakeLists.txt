@@ -17,7 +17,7 @@
 
 include(CheckLibraryExists)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 message(WARNING "
         ============================================================
@@ -36,6 +36,7 @@ add_library(nng-wolfssl OBJECT wolfssl.c)
 find_package(wolfSSL REQUIRED)
 target_link_libraries(nng-wolfssl PUBLIC ${WOLFSSL_LIBRARIES})
 target_include_directories(nng-wolfssl PRIVATE ${WOLFSSL_INCLUDE_DIR})
+target_include_directories(nng-wolfssl PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 # wolfssl/options.h in theory has defines already for these checks, but they
 # are poorly documented, and might not be reliable -- so we check ourselves.
