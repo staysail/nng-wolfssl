@@ -27,15 +27,14 @@ message(WARNING "
         Consult a lawyer and the license files for details.
         ============================================================")
 
-add_library(nng-wolfssl OBJECT)
-target_sources(nng-wolfssl wolfssl.c)
+add_library(nng-wolfssl OBJECT wolfssl.c)
 
 # WolfSSL does not have a CMake configuration, so we depend on it to be
 # installed separately. Because the configuration is rather onerous, and
 # really should be edited by hand, we also don't try to automate any of it
 # using ExternalProject_Add.  (End users need to hand-configure it.)
 find_package(wolfSSL REQUIRED)
-target_link_libraries(nng-wolfssl INTERFACE ${WOLFSSL_LIBRARIES})
+target_link_libraries(nng-wolfssl PUBLIC ${WOLFSSL_LIBRARIES})
 target_include_directories(nng-wolfssl PRIVATE ${WOLFSSL_INCLUDE_DIR})
 
 # wolfssl/options.h in theory has defines already for these checks, but they
