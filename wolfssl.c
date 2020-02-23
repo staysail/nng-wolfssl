@@ -105,7 +105,8 @@ wolf_conn_fini(nng_tls_engine_conn *ec)
 static int
 wolf_conn_init(nng_tls_engine_conn *ec, void *tls, nng_tls_engine_config *cfg)
 {
-	ec->tls = tls;
+	ec->tls       = tls;
+	ec->auth_mode = cfg->auth_mode;
 
 	if ((ec->ssl = wolfSSL_new(cfg->ctx)) == NULL) {
 		return (NNG_ENOMEM); // most likely
@@ -190,6 +191,9 @@ wolf_conn_handshake(nng_tls_engine_conn *ec)
 		case WOLFSSL_ERROR_WANT_READ:
 			return (NNG_EAGAIN);
 		default:
+			// This can fail if we do not have a certificate
+			// for the peer.  This will manifest as a failure
+			// during nng_dialer_start typically.
 			return (NNG_ECRYPTO);
 		}
 	}
@@ -205,6 +209,14 @@ wolf_conn_verified(nng_tls_engine_conn *ec)
 	case NNG_TLS_AUTH_MODE_REQUIRED:
 		return (true);
 	case NNG_TLS_AUTH_MODE_OPTIONAL:
+#ifdef NNG_WOLFSSL_HAVE_PEER_CERT
+		if (wolfSSL_get_peer_certificate(ec->ssl) != NULL) {
+			return (true);
+		}
+#endif
+		// If we don't have support for verification, we will
+		// just return false, because we can't do anything else.
+		return (false);
 	default:
 		// The client might have supplied us a cert, but wolfSSL
 		// is not configured to provide us that information.
@@ -229,14 +241,17 @@ static int
 wolf_config_init(nng_tls_engine_config *cfg, enum nng_tls_mode mode)
 {
 	int             auth_mode;
+	int             nng_auth;
 	WOLFSSL_METHOD *method;
 
 	if (mode == NNG_TLS_MODE_SERVER) {
 		method    = wolfSSLv23_server_method();
 		auth_mode = SSL_VERIFY_NONE;
+		nng_auth = NNG_TLS_AUTH_MODE_NONE;
 	} else {
 		method    = wolfSSLv23_client_method();
 		auth_mode = SSL_VERIFY_PEER;
+		nng_auth = NNG_TLS_AUTH_MODE_REQUIRED;
 	}
 
 	cfg->ctx = wolfSSL_CTX_new(method);
@@ -251,7 +266,7 @@ wolf_config_init(nng_tls_engine_config *cfg, enum nng_tls_mode mode)
 	wolfSSL_SetIORecv(cfg->ctx, wolf_net_recv);
 	wolfSSL_SetIOSend(cfg->ctx, wolf_net_send);
 
-	cfg->auth_mode = auth_mode;
+	cfg->auth_mode = nng_auth;
 	return (0);
 }
 
@@ -437,9 +452,12 @@ static nng_tls_engine_conn_ops wolf_conn_ops = {
 };
 
 static nng_tls_engine wolf_engine = {
-	.version    = NNG_TLS_ENGINE_VERSION,
-	.config_ops = &wolf_config_ops,
-	.conn_ops   = &wolf_conn_ops,
+	.version     = NNG_TLS_ENGINE_VERSION,
+	.config_ops  = &wolf_config_ops,
+	.conn_ops    = &wolf_conn_ops,
+	.name        = "wolf",
+	.description = "wolfSSL " LIBWOLFSSL_VERSION_STRING,
+	.fips_mode   = false, // commercial users only
 };
 
 int
@@ -453,7 +471,6 @@ nng_tls_engine_init_wolf(void)
 		wolfSSL_Cleanup();
 		return (NNG_EINTERNAL);
 	}
-	// wolfSSL_Debugging_ON();
 	return (nng_tls_engine_register(&wolf_engine));
 }
 
